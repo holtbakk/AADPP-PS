@@ -1,10 +1,10 @@
 # AADPP-PS
 PowerShell script utilizing AADPP events
 
-# Heading 1
+## Heading 1
 
 Content
 
-# Heading 2
+## Heading 2
 
 Content
