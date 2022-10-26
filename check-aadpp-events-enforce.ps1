@@ -16,6 +16,7 @@
 
     .NOTES
         Author: Bård Holtbakk
+        Version 1.2 - Cleanup
         Version 1.1 - Swapped days for hours
         Version 1.0 - Added logging to file
         Version 0.9 - Added Try/Catch for domain controllers
@@ -76,7 +77,8 @@ PROCESS {
         }
 
         # Add all users from WinEvent to a hashtable from the last $Hours
-        $UsersFromEvents = foreach ($Event in $PasswordEvents | Where-object TimeCreated -gt (Get-Date).AddHours(-$Hours)) {
+        #$UsersFromEvents = foreach ($Event in $PasswordEvents | Where-object TimeCreated -gt (Get-Date).AddHours(-$Hours)) {
+        $UsersFromEvents = foreach ($Event in $PasswordEvents) {
             If ($Event.Id -in $EventIds) {
                 $ThisUserName = (($event.Message.Split("UserName: "))[1].Split("FullName: ")[0]).Trim()
                 $ThisTimeCreated = $Event.TimeCreated
@@ -111,14 +113,14 @@ PROCESS {
                 } 
                 Else {
                     If ($User.UserName -In $UsersFromGroup.UserName) {
-                        if ($Output) { Write-Host -ForegroundColor Cyan "User does not exist or is not enabled in AD => $($User.UserName)" }
+                        if ($Output) { Write-Host -ForegroundColor Cyan "User is not enabled in AD => $($User.UserName)" }
                         Remove-ADGroupMember -Identity $ADGroup -Members $User.UserName -Confirm:$False
-                        [pscustomobject]@{Time = (Get-Date -Format "yyyy-MM-dd HH:mm:ss") ; Action = 'Deleted' ; User = "$($User.UserName)" } | Export-Csv -Encoding UTF8 -Path ($MyInvocation.MyCommand.Name).replace('ps1','log') -Append -NoTypeInformation
+                        [pscustomobject]@{Time = (Get-Date -Format "yyyy-MM-dd HH:mm:ss") ; Action = 'Removed inactive' ; User = "$($User.UserName)" } | Export-Csv -Encoding UTF8 -Path ($MyInvocation.MyCommand.Name).replace('ps1','log') -Append -NoTypeInformation
                     }
                 }
             }
             Else {
-                # User does not exist.
+                if ($Output) { Write-Host -ForegroundColor Cyan "User do no longer exist => $($User.UserName)" }
             }
         }
 
