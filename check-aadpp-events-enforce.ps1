@@ -98,29 +98,38 @@ PROCESS {
                 If ($CheckUser.Enabled -eq 'True') {
                     If ([datetime]($CheckUser).PasswordLastSet -gt [datetime](get-date -Date $User.TimeCreated)) {
                         If ($User.UserName -In $UsersFromGroup.UserName) {
-                            if ($Output) { write-host -ForegroundColor Green "User HAS changed password after latest risk detection => $($User.UserName)"  }
+                            if ($Output) { write-host -ForegroundColor Green "User HAS changed password after latest risk detection, removing from group => $($User.UserName)"  }
                             Remove-ADGroupMember -Identity $ADGroup -Members $User.UserName -Confirm:$False
                             [pscustomobject]@{Time = (Get-Date -Format "yyyy-MM-dd HH:mm:ss") ; Action = 'Removed' ; User = "$($User.UserName)" } | Export-Csv -Encoding UTF8 -Path ($MyInvocation.MyCommand.Name).replace('ps1','log') -Append -NoTypeInformation
+                        }
+                        Else {
+                            if ($Output) { write-host -ForegroundColor Green "User HAS changed password after latest risk detection, but not in group => $($User.UserName)"  }
                         }
                     }
                     Else {
                         If (-not ($User.UserName -In $UsersFromGroup.UserName)) {
-                            if ($Output) { Write-Host -ForegroundColor Red "User has NOT changed password after latest risk detection => $($User.UserName)" } 
+                            if ($Output) { Write-Host -ForegroundColor Red "User has NOT changed password after latest risk detection, adding to group => $($User.UserName)" } 
                             Add-ADGroupMember -Identity $ADGroup -Members $User.UserName
                             [pscustomobject]@{Time = (Get-Date -Format "yyyy-MM-dd HH:mm:ss") ; Action = 'Added' ; User = "$($User.UserName)" } | Export-Csv -Encoding UTF8 -Path ($MyInvocation.MyCommand.Name).replace('ps1','log') -Append -NoTypeInformation
+                        }
+                        Else {
+                            if ($Output) { Write-Host -ForegroundColor Red "User has NOT changed password after latest risk detection, but already in group => $($User.UserName)" }
                         }
                     }
                 } 
                 Else {
                     If ($User.UserName -In $UsersFromGroup.UserName) {
-                        if ($Output) { Write-Host -ForegroundColor Cyan "User is not enabled in AD => $($User.UserName)" }
+                        if ($Output) { Write-Host -ForegroundColor Cyan "User is not enabled in AD, removing from group => $($User.UserName)" }
                         Remove-ADGroupMember -Identity $ADGroup -Members $User.UserName -Confirm:$False
                         [pscustomobject]@{Time = (Get-Date -Format "yyyy-MM-dd HH:mm:ss") ; Action = 'Removed inactive' ; User = "$($User.UserName)" } | Export-Csv -Encoding UTF8 -Path ($MyInvocation.MyCommand.Name).replace('ps1','log') -Append -NoTypeInformation
+                    }
+                    Else {
+                        if ($Output) { Write-Host -ForegroundColor Cyan "User is not enabled in AD, but not in group => $($User.UserName)" }
                     }
                 }
             }
             Else {
-                if ($Output) { Write-Host -ForegroundColor Cyan "User do no longer exist => $($User.UserName)" }
+                if ($Output) { Write-Host -ForegroundColor Cyan "User do no longer exist, do nothing => $($User.UserName)" }
             }
         }
 
