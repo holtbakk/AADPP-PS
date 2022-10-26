@@ -1,10 +1,10 @@
 # AADPP-PS
-PowerShell script utilizing AADPP events
+PowerShell script utilizing AADPP in audit mode
 
-## Heading 1
+## Description
 
-Content
+Script for digesting event log for AADPP events, and adding insecure users to a AD group
 
-## Heading 2
+## Further information
 
-Content
+See LinkedIn article [link]
