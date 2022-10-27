@@ -15,7 +15,7 @@
         Number of hours to evaluate from eventlog
 
     .NOTES
-        Author: Bård Holtbakk
+        Author: Bard Holtbakk
         Version 1.2 - Cleanup
         Version 1.1 - Swapped days for hours
         Version 1.0 - Added logging to file
@@ -137,9 +137,12 @@ PROCESS {
     Else {
         Write-Host -ForegroundColor Red "Error - Domain controllers unreachable or AD group does not exist!"
     }
+
 }
 
 END {
+
     $EndScript = Get-Date
     if ($Output) { Write-Host -ForegroundColor Yellow "Script executed in $(($EndScript-$StartScript).minutes) minutes and $(($EndScript-$StartScript).seconds) seconds and $(($EndScript-$StartScript).milliseconds) milliseconds." }
+
 }
