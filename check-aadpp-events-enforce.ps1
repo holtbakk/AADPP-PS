@@ -25,8 +25,8 @@
         Run the script and output to screen. Evaluate data from past 14 days
         .\check-aadpp-events-enforce.ps1 -Output:$True -Hours:336
 
-        Run the script with no output. Evaluate data from past 12 hours
-        .\check-aadpp-events-enforce.ps1 -Hours:12
+        Run the script with no output. Evaluate data from past 24 hours
+        .\check-aadpp-events-enforce.ps1 -Hours:24
 #>
 
 [CmdletBinding()]
@@ -37,7 +37,7 @@ Param (
 
     [Parameter(Mandatory=$False)]
     [ValidateRange(1,8760)]
-    [Int]$Hours = 48
+    [Int]$Hours = 12
 )
 
 BEGIN {
