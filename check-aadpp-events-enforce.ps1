@@ -46,9 +46,9 @@ BEGIN {
     $StartScript = Get-Date
     # Modify this to match your AD group name
     $ADGroup = "SG-Users-AzureAdPasswordProtection-Detected"
-    # Modify this to retrieve all domain controllers
+    # Modify this to retrieve relevant domain controllers
     Try { $DomainControllers = (Get-ADComputer -SearchBase "OU=Domain Controllers,DC=NMBU,DC=NO" -Filter *).Name } Catch { Write-Host -ForegroundColor Red "Domain controllers unreachable!" ; break }
-    # Table of event ids to monitor
+    # Event ids to monitor
     $EventIds = @('30009')
 
 }
@@ -72,13 +72,13 @@ PROCESS {
         if ($Output) { Write-Host -ForegroundColor Yellow Fetching old users from group and evaluating logs for new events. Checking $Hours hours. }
 
         # Add all users from $ADGroup to a hashtable
-        $UsersFromGroup = foreach ($Member in (Get-ADGroupMember -Identity $($ADGroup))) {
+        $InsecureUsersFromGroup = foreach ($Member in (Get-ADGroupMember -Identity $($ADGroup))) {
             New-Object PSCustomObject -Property @{ UserName = $Member.SamAccountName ; TimeCreated = (Get-Date).AddHours(-$Hours) }
         }
 
         # Add all users from WinEvent to a hashtable from the last $Hours
-        #$UsersFromEvents = foreach ($Event in $PasswordEvents | Where-object TimeCreated -gt (Get-Date).AddHours(-$Hours)) {
-        $UsersFromEvents = foreach ($Event in $PasswordEvents) {
+        #$InsecureUsersFromEvents = foreach ($Event in $PasswordEvents | Where-object TimeCreated -gt (Get-Date).AddHours(-$Hours)) {
+        $InsecureUsersFromEvents = foreach ($Event in $PasswordEvents) {
             If ($Event.Id -in $EventIds) {
                 $ThisUserName = (($event.Message.Split("UserName: "))[1].Split("FullName: ")[0]).Trim()
                 $ThisTimeCreated = $Event.TimeCreated
@@ -86,8 +86,8 @@ PROCESS {
             }
         }
         
-        # Merging hashtable
-        $InsecureUsers = $UsersFromGroup + $UsersFromEvents
+        # Merging hashtables
+        $InsecureUsers = $InsecureUsersFromGroup + $InsecureUsersFromEvents
         
         # Remove duplicates from hashtable. Keep the latest TimeCreated row for each user
         $InsecureUsers = $InsecureUsers | Group-Object UserName | ForEach-Object { $_.Group | Sort-Object TimeCreated | Select-Object -last 1 }
@@ -97,7 +97,7 @@ PROCESS {
             If ($CheckUser = Get-ADUser -Filter "CN -eq '$($User.UserName)'" -Properties PasswordLastSet,Enabled) {
                 If ($CheckUser.Enabled -eq 'True') {
                     If ([datetime]($CheckUser).PasswordLastSet -gt [datetime](get-date -Date $User.TimeCreated)) {
-                        If ($User.UserName -In $UsersFromGroup.UserName) {
+                        If ($User.UserName -In $InsecureUsersFromGroup.UserName) {
                             if ($Output) { write-host -ForegroundColor Green "User HAS changed password after latest risk detection, removing from group => $($User.UserName)"  }
                             Remove-ADGroupMember -Identity $ADGroup -Members $User.UserName -Confirm:$False
                             [pscustomobject]@{Time = (Get-Date -Format "yyyy-MM-dd HH:mm:ss") ; Action = 'Removed' ; User = "$($User.UserName)" } | Export-Csv -Encoding UTF8 -Path ($MyInvocation.MyCommand.Name).replace('ps1','log') -Append -NoTypeInformation
@@ -107,7 +107,7 @@ PROCESS {
                         }
                     }
                     Else {
-                        If (-not ($User.UserName -In $UsersFromGroup.UserName)) {
+                        If (-not ($User.UserName -In $InsecureUsersFromGroup.UserName)) {
                             if ($Output) { Write-Host -ForegroundColor Red "User has NOT changed password after latest risk detection, adding to group => $($User.UserName)" } 
                             Add-ADGroupMember -Identity $ADGroup -Members $User.UserName
                             [pscustomobject]@{Time = (Get-Date -Format "yyyy-MM-dd HH:mm:ss") ; Action = 'Added' ; User = "$($User.UserName)" } | Export-Csv -Encoding UTF8 -Path ($MyInvocation.MyCommand.Name).replace('ps1','log') -Append -NoTypeInformation
@@ -118,7 +118,7 @@ PROCESS {
                     }
                 } 
                 Else {
-                    If ($User.UserName -In $UsersFromGroup.UserName) {
+                    If ($User.UserName -In $InsecureUsersFromGroup.UserName) {
                         if ($Output) { Write-Host -ForegroundColor Cyan "User is not enabled in AD, removing from group => $($User.UserName)" }
                         Remove-ADGroupMember -Identity $ADGroup -Members $User.UserName -Confirm:$False
                         [pscustomobject]@{Time = (Get-Date -Format "yyyy-MM-dd HH:mm:ss") ; Action = 'Removed inactive' ; User = "$($User.UserName)" } | Export-Csv -Encoding UTF8 -Path ($MyInvocation.MyCommand.Name).replace('ps1','log') -Append -NoTypeInformation
